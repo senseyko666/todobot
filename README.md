@@ -2,6 +2,17 @@
 
 Telegram бот для управления задачами с Django backend и Celery уведомлениями.
 
+> **Тестовое задание для бекенд-разработчика** - полнофункциональная система управления задачами с современным стеком технологий.
+
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Django](https://img.shields.io/badge/Django-4.2.7-green)
+![Aiogram](https://img.shields.io/badge/Aiogram-3.4.1-blue)
+![Docker](https://img.shields.io/badge/Docker-Compose-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)
+![Redis](https://img.shields.io/badge/Redis-7-red)
+![Celery](https://img.shields.io/badge/Celery-5.3.4-green)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
+
 ## 🏗️ Архитектура решения
 
 Проект состоит из следующих компонентов:
@@ -62,9 +73,15 @@ cd todo-bot
 
 2. **Настройте переменные окружения**
 ```bash
-cp .env.todo .env
+cp .env.example .env
 # Отредактируйте .env и укажите BOT_TOKEN от @BotFather
 ```
+
+**Получение BOT_TOKEN:**
+1. Найдите @BotFather в Telegram
+2. Отправьте команду `/newbot`
+3. Следуйте инструкциям для создания бота
+4. Скопируйте полученный токен в файл `.env`
 
 3. **Запустите все сервисы**
 ```bash
