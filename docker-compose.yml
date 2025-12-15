@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: todo_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis для Celery и состояний диалогов
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django backend
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    environment:
+      - DEBUG=True
+      - DJANGO_SECRET_KEY=your-secret-key-change-in-production
+      - POSTGRES_DB=todo_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./django_backend:/app
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Celery worker
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    environment:
+      - DEBUG=True
+      - DJANGO_SECRET_KEY=your-secret-key-change-in-production
+      - POSTGRES_DB=todo_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+    volumes:
+      - ./django_backend:/app
+    command: celery -A todo_project worker --loglevel=info
+
+  # Celery beat (планировщик)
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    environment:
+      - DEBUG=True
+      - DJANGO_SECRET_KEY=your-secret-key-change-in-production
+      - POSTGRES_DB=todo_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+    volumes:
+      - ./django_backend:/app
+    command: celery -A todo_project beat --loglevel=info
+
+  # Telegram бот
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DJANGO_API_URL=http://django:8000/api
+      - REDIS_URL=redis://redis:6379/1
+      - LOG_LEVEL=INFO
+    depends_on:
+      django:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./telegram_bot:/app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
